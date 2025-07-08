@@ -8,8 +8,7 @@ import { CreateProductDto } from '../src/products/dto/create-product.dto';
 import { CartItemDto } from '../src/users/dto/cart-item.dto';
 import { CreateOrderDto } from '../src/orders/dto/create-order.dto';
 import { getConnectionToken } from '@nestjs/mongoose';
-import { Connection } from 'mongoose';
-import { ObjectId } from 'mongodb';
+import mongoose, { Connection } from 'mongoose';
 
 describe('Order Workflow (e2e)', () => {
   let app: INestApplication;
@@ -42,18 +41,27 @@ describe('Order Workflow (e2e)', () => {
     connection = moduleFixture.get<Connection>(getConnectionToken());
   });
 
+  const ObjectId = (id: string) => {
+    return new mongoose.Types.ObjectId(id);
+  };
   afterEach(async () => {
     // Clean up created data after each test
     if (createdIds.userIds.length > 0) {
-      await connection.collection('users').deleteMany({ _id: { $in: createdIds.userIds.map(id => new ObjectId(id)) } });
+      await connection.collection('users').deleteMany({
+        _id: { $in: createdIds.userIds.map((id) => ObjectId(id)) },
+      });
       createdIds.userIds = [];
     }
     if (createdIds.productIds.length > 0) {
-      await connection.collection('products').deleteMany({ _id: { $in: createdIds.productIds.map(id => new ObjectId(id)) } });
+      await connection.collection('products').deleteMany({
+        _id: { $in: createdIds.productIds.map((id) => ObjectId(id)) },
+      });
       createdIds.productIds = [];
     }
     if (createdIds.orderIds.length > 0) {
-      await connection.collection('orders').deleteMany({ _id: { $in: createdIds.orderIds.map(id => new ObjectId(id)) } });
+      await connection.collection('orders').deleteMany({
+        _id: { $in: createdIds.orderIds.map((id) => ObjectId(id)) },
+      });
       createdIds.orderIds = [];
     }
   });
@@ -83,19 +91,19 @@ describe('Order Workflow (e2e)', () => {
 
     // 2. Create a product
     const productDto: CreateProductDto = {
-        name: 'E2E Test Product',
-        shortDescription: 'A product for E2E testing',
-        pricing: [{ size: { sizeName: 'M', sizeQuantity: 1 }, price: 100 }],
-        image: 'e2e.jpg',
-        categories: [{ nameInHebrew: 'בדיקה', nameInEnglish: 'Testing' }],
-        subCategories: [],
-        features: { value: [{ title: 'E2E', description: 'Testable' }] },
-        totalSales: 0,
+      name: 'E2E Test Product',
+      shortDescription: 'A product for E2E testing',
+      pricing: [{ size: { sizeName: 'M', sizeQuantity: 1 }, price: 100 }],
+      image: 'e2e.jpg',
+      categories: [{ nameInHebrew: 'בדיקה', nameInEnglish: 'Testing' }],
+      subCategories: [],
+      features: { value: [{ title: 'E2E', description: 'Testable' }] },
+      totalSales: 0,
     };
     const productResponse = await request(app.getHttpServer())
-        .post('/products')
-        .send(productDto)
-        .expect(201);
+      .post('/products')
+      .send(productDto)
+      .expect(201);
     const productId = productResponse.body._id;
     createdIds.productIds.push(productResponse.body._id);
 
@@ -118,12 +126,12 @@ describe('Order Workflow (e2e)', () => {
         email: 'e2e-test@example.com',
         phone: '1234567890',
         address: {
-            street: '123 Test St',
-            streetNum: '1',
-            city: 'Testville',
-            postal_code: '12345',
-            country: 'Israel',
-        }
+          street: '123 Test St',
+          streetNum: '1',
+          city: 'Testville',
+          postal_code: '12345',
+          country: 'Israel',
+        },
       },
       items: [
         {
@@ -143,7 +151,7 @@ describe('Order Workflow (e2e)', () => {
       .post('/orders/create')
       .send(orderDto)
       .expect(201);
-    
+
     const orderId = orderResponse.body._id;
     createdIds.orderIds.push(orderResponse.body._id);
 
@@ -151,7 +159,9 @@ describe('Order Workflow (e2e)', () => {
     const notificationPayload = {
       more_info: orderId,
       status: 'paid',
-      transaction: { /* mock transaction details */ },
+      transaction: {
+        /* mock transaction details */
+      },
     };
     await request(app.getHttpServer())
       .post('/orders/notify')

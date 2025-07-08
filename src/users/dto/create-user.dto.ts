@@ -17,7 +17,9 @@ export class CreateUserDto {
   @IsNotEmpty()
   mobile: string;
 
-  @ApiProperty({ example: { street: '123 Main St', city: 'Anytown', zip: '12345' } })
+  @ApiProperty({
+    example: { street: '123 Main St', city: 'Anytown', zip: '12345' },
+  })
   @IsNotEmpty()
   address: {
     street: string;

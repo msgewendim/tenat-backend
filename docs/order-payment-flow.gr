@@ -1,0 +1,34 @@
+graph TD
+    A["Frontend: User clicks Checkout"] --> B["Frontend: POST /api/orders/generate-sale"]
+    B --> C["Backend: OrdersService.generateSaleOrder"]
+    C --> D["Validate Order Data"]
+    D --> E["Create Order in DB - Status: pending"]
+    E --> F["PaymentService.getPaymentLink"]
+    F --> G["Construct PayPlus Payload"]
+    G --> H["Send Request to PayPlus API"]
+    H --> I["PayPlus Returns Payment Link"]
+    I --> J["Update Order with Payment Reference"]
+    J --> K["Return Payment Link to Frontend"]
+    K --> L["Frontend: Redirect User to PayPlus"]
+    L --> M["User Enters Payment Info on PayPlus"]
+    M --> N["PayPlus Processes Payment"]
+    N --> O{"Payment Successful?"}
+    O -->|Yes| P["PayPlus: Send Webhook to Backend"]
+    O -->|No| Q["PayPlus: Send Failure Webhook"]
+    P --> R["Backend: Verify Webhook Signature"]
+    Q --> R
+    R --> S["OrdersService.handlePaymentWebhook"]
+    S --> T["Update Order Status in DB"]
+    T --> U["Emit Real-time Event via WebSocket"]
+    U --> V["Frontend: Receive Payment Confirmation"]
+    V --> W["Display Success/Failure Message"]
+    
+    style A fill:#e1f5fe
+    style B fill:#e8f5e8
+    style L fill:#fff3e0
+    style M fill:#fff3e0
+    style N fill:#fff3e0
+    style P fill:#e8f5e8
+    style Q fill:#ffebee
+    style V fill:#f3e5f5
+    style W fill:#f3e5f5

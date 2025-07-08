@@ -82,7 +82,11 @@ describe('OrdersService', () => {
         exec: jest.fn().mockResolvedValue(updatedOrder),
       } as any);
 
-      const result = await service.updatePaymentStatus(mockOrder._id, 'paid', {});
+      const result = await service.updatePaymentStatus(
+        mockOrder._id,
+        'paid',
+        {},
+      );
       expect(model.findByIdAndUpdate).toHaveBeenCalledWith(
         mockOrder._id,
         { status: 'paid', paymentDetails: {} },

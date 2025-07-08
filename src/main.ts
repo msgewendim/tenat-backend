@@ -11,10 +11,10 @@ import { User } from './users/schemas/user.schema';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const ENABLED_CORS_ORIGIN = [
-    "https://te-enat-shop.onrender.com",
-    "http://localhost:5173",
-    "https://www.tenat.co.il"
-  ]
+    'https://te-enat-shop.onrender.com',
+    'http://localhost:5173',
+    'https://www.tenat.co.il',
+  ];
   app.enableCors({
     origin: ENABLED_CORS_ORIGIN,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',

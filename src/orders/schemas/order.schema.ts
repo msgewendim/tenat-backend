@@ -43,7 +43,11 @@ export const CustomerSchema = SchemaFactory.createForClass(Customer);
 
 @Schema()
 export class OrderItem extends Document {
-  @Prop({ type: MongooseSchema.Types.ObjectId, refPath: 'items.itemType', required: true })
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    refPath: 'items.itemType',
+    required: true,
+  })
   item: string;
 
   @Prop({ required: true, enum: ['Product', 'Package'] })
@@ -106,7 +110,8 @@ export class PaymentDetails extends Document {
   terminal_uid: string;
 }
 
-export const PaymentDetailsSchema = SchemaFactory.createForClass(PaymentDetails);
+export const PaymentDetailsSchema =
+  SchemaFactory.createForClass(PaymentDetails);
 
 @Schema({ timestamps: true })
 export class Order extends Document {
@@ -119,7 +124,10 @@ export class Order extends Document {
   @Prop({ required: true, min: 0 })
   totalPrice: number;
 
-  @Prop({ enum: ['pending', 'processing', 'paid', 'failed', 'cancelled'], default: 'pending' })
+  @Prop({
+    enum: ['pending', 'processing', 'paid', 'failed', 'cancelled'],
+    default: 'pending',
+  })
   status: string;
 
   @Prop({ type: PaymentDetailsSchema, default: null })

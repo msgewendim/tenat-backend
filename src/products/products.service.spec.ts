@@ -57,7 +57,9 @@ describe('ProductsService', () => {
       jest.spyOn(model, 'aggregate').mockReturnValue({
         exec: jest.fn().mockResolvedValue(products),
       } as any);
-      expect(await service.getProductsByName(['Test Product'])).toEqual(products);
+      expect(await service.getProductsByName(['Test Product'])).toEqual(
+        products,
+      );
     });
   });
 });

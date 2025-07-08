@@ -52,8 +52,13 @@ export class RecipesService {
     return this.recipeModel.findById(id).exec();
   }
 
-  async update(id: string, updateRecipeDto: UpdateRecipeDto): Promise<Recipe | null> {
-    return this.recipeModel.findByIdAndUpdate(id, updateRecipeDto, { new: true }).exec();
+  async update(
+    id: string,
+    updateRecipeDto: UpdateRecipeDto,
+  ): Promise<Recipe | null> {
+    return this.recipeModel
+      .findByIdAndUpdate(id, updateRecipeDto, { new: true })
+      .exec();
   }
 
   async remove(id: string): Promise<Recipe | null> {
@@ -63,14 +68,15 @@ export class RecipesService {
   async getRandomRecipes(page: number, limit: number): Promise<any> {
     const totalRecipes = await this.recipeModel.countDocuments();
     const totalPages = Math.ceil(totalRecipes / limit);
-    const recipes = await this.recipeModel.aggregate([
-      { $sample: { size: limit } },
-      { $skip: (page - 1) * limit },
-    ]).exec();
+    const recipes = await this.recipeModel
+      .aggregate([{ $sample: { size: limit } }, { $skip: (page - 1) * limit }])
+      .exec();
     return { items: recipes, currentPage: page, totalPages };
   }
 
   async getRecipesByName(name: string): Promise<Recipe[]> {
-    return this.recipeModel.find({ name: { $regex: name, $options: 'i' } }).exec();
+    return this.recipeModel
+      .find({ name: { $regex: name, $options: 'i' } })
+      .exec();
   }
 }

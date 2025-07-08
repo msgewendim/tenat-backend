@@ -7,7 +7,9 @@ import { Package } from './schemas/package.schema';
 
 @Injectable()
 export class PackagesService {
-  constructor(@InjectModel(Package.name) private packageModel: Model<Package>) {}
+  constructor(
+    @InjectModel(Package.name) private packageModel: Model<Package>,
+  ) {}
 
   async create(createPackageDto: CreatePackageDto): Promise<Package> {
     const createdPackage = new this.packageModel(createPackageDto);
@@ -26,8 +28,13 @@ export class PackagesService {
     return this.packageModel.findById(id).exec();
   }
 
-  async update(id: string, updatePackageDto: UpdatePackageDto): Promise<Package | null> {
-    return this.packageModel.findByIdAndUpdate(id, updatePackageDto, { new: true }).exec();
+  async update(
+    id: string,
+    updatePackageDto: UpdatePackageDto,
+  ): Promise<Package | null> {
+    return this.packageModel
+      .findByIdAndUpdate(id, updatePackageDto, { new: true })
+      .exec();
   }
 
   async remove(id: string): Promise<Package | null> {
@@ -37,10 +44,9 @@ export class PackagesService {
   async getRandomPackages(page: number, limit: number): Promise<any> {
     const totalPackages = await this.packageModel.countDocuments();
     const totalPages = Math.ceil(totalPackages / limit);
-    const packages = await this.packageModel.aggregate([
-      { $sample: { size: limit } },
-      { $skip: (page - 1) * limit },
-    ]).exec();
+    const packages = await this.packageModel
+      .aggregate([{ $sample: { size: limit } }, { $skip: (page - 1) * limit }])
+      .exec();
     return { items: packages, currentPage: page, totalPages };
   }
 }

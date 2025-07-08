@@ -3,6 +3,7 @@ import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
 import { PaymentService } from './payments/payment.service';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { OrdersGateway } from './orders.gateway';
 
 const mockOrder = {
   _id: 'orderId',
@@ -28,6 +29,7 @@ const mockOrder = {
 describe('OrdersController', () => {
   let controller: OrdersController;
   let service: OrdersService;
+  let gateway: OrdersGateway;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -44,11 +46,18 @@ describe('OrdersController', () => {
           provide: PaymentService,
           useValue: {},
         },
+        {
+          provide: OrdersGateway,
+          useValue: {
+            sendPaymentConfirmation: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     controller = module.get<OrdersController>(OrdersController);
     service = module.get<OrdersService>(OrdersService);
+    gateway = module.get<OrdersGateway>(OrdersGateway);
   });
 
   it('should be defined', () => {
@@ -79,6 +88,19 @@ describe('OrdersController', () => {
         'orderId',
         'paid',
         {},
+      );
+    });
+
+    it('should call sendPaymentConfirmation on the gateway', async () => {
+      const body = {
+        more_info: 'orderId',
+        status: 'paid',
+        transaction: {},
+      };
+      await controller.successfulPayment(body);
+      expect(gateway.sendPaymentConfirmation).toHaveBeenCalledWith(
+        'orderId',
+        'paid',
       );
     });
   });

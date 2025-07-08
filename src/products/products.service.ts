@@ -7,7 +7,9 @@ import { Product } from './schemas/product.schema';
 
 @Injectable()
 export class ProductsService {
-  constructor(@InjectModel(Product.name) private productModel: Model<Product>) {}
+  constructor(
+    @InjectModel(Product.name) private productModel: Model<Product>,
+  ) {}
 
   async create(createProductDto: CreateProductDto): Promise<Product> {
     const createdProduct = new this.productModel(createProductDto);
@@ -80,8 +82,13 @@ export class ProductsService {
     return product;
   }
 
-  async update(id: string, updateProductDto: UpdateProductDto): Promise<Product> {
-    const updatedProduct = await this.productModel.findByIdAndUpdate(id, updateProductDto, { new: true }).exec();
+  async update(
+    id: string,
+    updateProductDto: UpdateProductDto,
+  ): Promise<Product> {
+    const updatedProduct = await this.productModel
+      .findByIdAndUpdate(id, updateProductDto, { new: true })
+      .exec();
     if (!updatedProduct) {
       throw new NotFoundException('Product not found');
     }
@@ -99,33 +106,34 @@ export class ProductsService {
   async getRandomProducts(page: number, limit: number): Promise<any> {
     const totalProducts = await this.productModel.countDocuments();
     const totalPages = Math.ceil(totalProducts / limit);
-    const products = await this.productModel.aggregate([
-      { $sample: { size: limit } },
-      { $skip: (page - 1) * limit },
-    ]).exec();
+    const products = await this.productModel
+      .aggregate([{ $sample: { size: limit } }, { $skip: (page - 1) * limit }])
+      .exec();
     return { items: products, currentPage: page, totalPages };
   }
 
   async getProductsByName(names: string[]): Promise<Product[]> {
     const nameRegexPatterns = names.map((name) => new RegExp(name, 'i'));
-    return this.productModel.aggregate([
-      {
-        $match: {
-          name: { $in: nameRegexPatterns },
+    return this.productModel
+      .aggregate([
+        {
+          $match: {
+            name: { $in: nameRegexPatterns },
+          },
         },
-      },
-      {
-        $group: {
-          _id: '$_id',
-          doc: { $first: '$ROOT' },
+        {
+          $group: {
+            _id: '$_id',
+            doc: { $first: '$ROOT' },
+          },
         },
-      },
-      {
-        $replaceRoot: { newRoot: '$doc' },
-      },
-      {
-        $sort: { name: 1 },
-      },
-    ]).exec();
+        {
+          $replaceRoot: { newRoot: '$doc' },
+        },
+        {
+          $sort: { name: 1 },
+        },
+      ])
+      .exec();
   }
 }

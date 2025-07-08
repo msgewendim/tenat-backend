@@ -49,11 +49,13 @@ export class UsersService {
   }
 
   async addToCart(userId: string, cartItemDto: CartItemDto): Promise<User> {
-    const updatedUser = await this.userModel.findByIdAndUpdate(
-      userId,
-      { $push: { cart: cartItemDto } },
-      { new: true },
-    ).exec();
+    const updatedUser = await this.userModel
+      .findByIdAndUpdate(
+        userId,
+        { $push: { cart: cartItemDto } },
+        { new: true },
+      )
+      .exec();
 
     if (!updatedUser) {
       throw new NotFoundException('User not found');
@@ -62,11 +64,9 @@ export class UsersService {
   }
 
   async clearCart(userId: string): Promise<User> {
-    const updatedUser = await this.userModel.findByIdAndUpdate(
-      userId,
-      { $set: { cart: [] } },
-      { new: true },
-    ).exec();
+    const updatedUser = await this.userModel
+      .findByIdAndUpdate(userId, { $set: { cart: [] } }, { new: true })
+      .exec();
 
     if (!updatedUser) {
       throw new NotFoundException('User not found');
