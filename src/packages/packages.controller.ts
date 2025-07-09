@@ -39,8 +39,8 @@ export class PackagesController {
     type: [Package],
   })
   async findAll(
-    @Query('page', ParseIntPipe) page: number,
-    @Query('limit', ParseIntPipe) limit: number,
+    @Query('page', ParseIntPipe) page?: number,
+    @Query('limit', ParseIntPipe) limit?: number,
   ) {
     return await this.packagesService.findAll(page, limit);
   }

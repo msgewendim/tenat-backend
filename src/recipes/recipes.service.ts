@@ -15,13 +15,15 @@ export class RecipesService {
   }
 
   async findAll(
-    page: number,
-    limit: number,
+    page?: number,
+    limit?: number,
     searchTerm?: string,
     category?: string,
     excludeById?: string,
   ): Promise<Recipe[]> {
     const query: QueryOptions = {};
+    page = page && page > 0 ? page : 1;
+    limit = limit ?? 9;
 
     if (searchTerm) {
       query.$or = [

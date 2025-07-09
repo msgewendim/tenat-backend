@@ -16,7 +16,9 @@ export class PackagesService {
     return createdPackage.save();
   }
 
-  async findAll(page: number, limit: number): Promise<Package[]> {
+  async findAll(page?: number, limit?: number): Promise<Package[]> {
+    page = page && page > 0 ? page : 1;
+    limit = limit ?? 9;
     return this.packageModel
       .find()
       .skip((page - 1) * limit)

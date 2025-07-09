@@ -39,8 +39,8 @@ export class ProductsController {
     type: [Product],
   })
   async findAll(
-    @Query('page', ParseIntPipe) page: number,
-    @Query('limit', ParseIntPipe) limit: number,
+    @Query('page', ParseIntPipe) page?: number,
+    @Query('limit', ParseIntPipe) limit?: number,
     @Query('searchTerm') searchTerm?: string,
     @Query('category') category?: string,
     @Query('subCategory') subCategory?: string,
