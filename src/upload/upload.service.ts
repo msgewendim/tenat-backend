@@ -6,6 +6,7 @@ import {
   UploadedFileDto,
   UploadErrorDto,
   BatchUploadResponseDto,
+  SingleUploadResponseDto,
 } from './dto/upload-response.dto';
 
 @Injectable()
@@ -27,7 +28,7 @@ export class UploadService {
   async uploadSingleImage(
     file: Express.Multer.File,
     folder: string = 'tenat-uploads',
-  ): Promise<UploadedFileDto> {
+  ): Promise<SingleUploadResponseDto> {
     try {
       // Validate the image file
       const validation = this.validateImageFile(file.buffer, file.originalname);

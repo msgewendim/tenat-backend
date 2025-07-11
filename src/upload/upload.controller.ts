@@ -2,14 +2,15 @@ import {
   Controller,
   Post,
   UseInterceptors,
-  UploadedFile,
   UploadedFiles,
   BadRequestException,
   Query,
   UseGuards,
   Req,
+  Logger,
+  InternalServerErrorException,
 } from '@nestjs/common';
-import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
   ApiOperation,
@@ -17,6 +18,7 @@ import {
   ApiResponse,
   ApiQuery,
   ApiBearerAuth,
+  ApiBody,
 } from '@nestjs/swagger';
 import { UploadService } from './upload.service';
 import {
@@ -33,16 +35,38 @@ import { JwtPayload } from '../auth/strategies/jwt.strategy';
 @ApiTags('Upload')
 @Controller('upload')
 export class UploadController {
+  private readonly logger = new Logger(UploadController.name);
+
   constructor(private readonly uploadService: UploadService) {}
 
   @Post('images/public')
-  @Throttle({ default: { limit: 20, ttl: 60000 } }) // 20 uploads per minute for public
+  @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 uploads per minute for public
   @ApiOperation({
     summary: 'Upload images (Public)',
     description:
-      'Public endpoint for uploading images. No authentication required but has stricter rate limits.',
+      'Public endpoint for uploading images. No authentication required but has stricter rate limits and file restrictions.',
   })
   @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Single image file to upload',
+        },
+        files: {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
+          description: 'Multiple image files to upload (max 3)',
+        },
+      },
+    },
+  })
   @ApiQuery({
     name: 'folder',
     required: false,
@@ -52,12 +76,12 @@ export class UploadController {
   @ApiResponse({
     status: 200,
     description: 'Upload successful',
-    schema: {
-      oneOf: [
-        { $ref: '#/components/schemas/SingleUploadResponseDto' },
-        { $ref: '#/components/schemas/BatchUploadResponseDto' },
-      ],
-    },
+    type: SingleUploadResponseDto,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Batch upload successful',
+    type: BatchUploadResponseDto,
   })
   @ApiResponse({
     status: 400,
@@ -67,30 +91,63 @@ export class UploadController {
     status: 429,
     description: 'Too Many Requests - rate limit exceeded',
   })
-  @UseInterceptors(FileInterceptor('file'), FilesInterceptor('files', 5)) // Limit to 5 files for public
+  @ApiResponse({
+    status: 500,
+    description: 'Internal server error - upload service failed',
+  })
+  @UseInterceptors(AnyFilesInterceptor({ limits: { files: 3 } })) // Limit to 3 files for public
   async uploadImagesPublic(
-    @UploadedFile() file?: Express.Multer.File,
-    @UploadedFiles() files?: Express.Multer.File[],
+    @UploadedFiles() allFiles: Express.Multer.File[],
     @Query('folder') folder?: string,
   ): Promise<SingleUploadResponseDto | BatchUploadResponseDto> {
     const uploadFolder = folder || 'public-uploads';
 
-    console.log(`Public upload request to folder: ${uploadFolder}`);
+    this.logger.log(`Public upload request to folder: ${uploadFolder}`);
 
-    return this.processUpload(file, files, uploadFolder);
+    try {
+      return await this.processUpload(allFiles, uploadFolder, false);
+    } catch (error) {
+      this.logger.error('Public upload failed:', error);
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        'Upload service temporarily unavailable. Please try again later.',
+      );
+    }
   }
 
   @Post('images')
-  // @ApiBearerAuth()
-  // @UseGuards(JwtAuthGuard, PermissionsGuard)
-  // @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 uploads per minute for authenticated users
-  // @Permissions('upload:images')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Throttle({ default: { limit: 20, ttl: 60000 } }) // 20 uploads per minute for authenticated users
+  @Permissions('upload:images')
   @ApiOperation({
     summary: 'Upload images (Authenticated)',
     description:
-      'Authenticated endpoint for uploading images. Requires valid JWT token and upload permissions.',
+      'Authenticated endpoint for uploading images. Requires valid JWT token and upload permissions. Higher file limits.',
   })
   @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Single image file to upload',
+        },
+        files: {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
+          description: 'Multiple image files to upload (max 10)',
+        },
+      },
+    },
+  })
   @ApiQuery({
     name: 'folder',
     required: false,
@@ -100,12 +157,12 @@ export class UploadController {
   @ApiResponse({
     status: 200,
     description: 'Upload successful',
-    schema: {
-      oneOf: [
-        { $ref: '#/components/schemas/SingleUploadResponseDto' },
-        { $ref: '#/components/schemas/BatchUploadResponseDto' },
-      ],
-    },
+    type: SingleUploadResponseDto,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Batch upload successful',
+    type: BatchUploadResponseDto,
   })
   @ApiResponse({
     status: 400,
@@ -123,61 +180,156 @@ export class UploadController {
     status: 429,
     description: 'Too Many Requests - rate limit exceeded',
   })
-  @UseInterceptors(FileInterceptor('file'), FilesInterceptor('files', 10))
+  @ApiResponse({
+    status: 500,
+    description: 'Internal server error - upload service failed',
+  })
+  @UseInterceptors(AnyFilesInterceptor({ limits: { files: 10 } }))
   async uploadImages(
-    @UploadedFile() file?: Express.Multer.File,
-    @UploadedFiles() files?: Express.Multer.File[],
+    @UploadedFiles() allFiles: Express.Multer.File[],
     @Query('folder') folder?: string,
     @Req() req?: Request & { user: JwtPayload },
   ): Promise<SingleUploadResponseDto | BatchUploadResponseDto> {
     const uploadFolder = folder || 'tenat-uploads';
     const userId = req?.user?.sub || 'anonymous';
+    const userEmail = req?.user?.email || 'unknown';
 
-    console.log(`User ${userId} is uploading to folder: ${uploadFolder}`);
+    this.logger.log(
+      `User ${userEmail} (${userId}) is uploading to folder: ${uploadFolder}`,
+    );
 
-    return this.processUpload(file, files, uploadFolder);
+    try {
+      return await this.processUpload(allFiles, uploadFolder, true);
+    } catch (error) {
+      this.logger.error(`Upload failed for user ${userEmail}:`, error);
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        'Upload service temporarily unavailable. Please try again later.',
+      );
+    }
   }
 
   private async processUpload(
-    file?: Express.Multer.File,
-    files?: Express.Multer.File[],
-    uploadFolder?: string,
+    allFiles: Express.Multer.File[],
+    uploadFolder: string,
+    isAuthenticated: boolean,
   ): Promise<SingleUploadResponseDto | BatchUploadResponseDto> {
-    // Check if we have any files
-    if (!file && (!files || files.length === 0)) {
+    // Check if we have any files at all
+    if (!allFiles || allFiles.length === 0) {
       throw new BadRequestException(
         'No files provided. Please upload at least one image file.',
       );
     }
 
-    // Single file upload
-    if (file && (!files || files.length === 0)) {
-      try {
-        return await this.uploadService.uploadSingleImage(file, uploadFolder);
-      } catch (error) {
-        throw new BadRequestException(
-          `Failed to upload image: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        );
-      }
+    // Validate file count limits
+    const maxFiles = isAuthenticated ? 10 : 3;
+    if (allFiles.length > maxFiles) {
+      throw new BadRequestException(
+        `Too many files. Maximum allowed: ${maxFiles} for ${
+          isAuthenticated ? 'authenticated' : 'public'
+        } uploads.`,
+      );
     }
 
-    // Multiple files upload (batch)
-    if (files && files.length > 0) {
-      // If both file and files are provided, combine them
-      const allFiles = file ? [file, ...files] : files;
+    // Separate single file vs multiple files based on fieldname
+    const singleFile = allFiles.find((f) => f.fieldname === 'file');
+    const multipleFiles = allFiles.filter((f) => f.fieldname === 'files');
 
-      try {
-        return await this.uploadService.uploadMultipleImages(
-          allFiles,
+    this.logger.debug(
+      `Processing upload: single=${!!singleFile}, multiple=${
+        multipleFiles.length
+      }, total=${allFiles.length}`,
+    );
+
+    try {
+      // Single file upload
+      if (singleFile && multipleFiles.length === 0) {
+        this.logger.log(`Uploading single file: ${singleFile.originalname}`);
+        return await this.uploadService.uploadSingleImage(
+          singleFile,
           uploadFolder,
         );
-      } catch (error) {
-        throw new BadRequestException(
-          `Failed to upload images: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      }
+
+      // Multiple files upload (batch)
+      if (multipleFiles.length > 0) {
+        // If both single file and multiple files are provided, combine them
+        const filesToUpload = singleFile
+          ? [singleFile, ...multipleFiles]
+          : multipleFiles;
+
+        this.logger.log(
+          `Uploading ${filesToUpload.length} files: ${filesToUpload
+            .map((f) => f.originalname)
+            .join(', ')}`,
+        );
+
+        return await this.uploadService.uploadMultipleImages(
+          filesToUpload,
+          uploadFolder,
         );
       }
-    }
 
-    throw new BadRequestException('No valid files provided');
+      // Handle case where files are uploaded with different fieldnames
+      if (allFiles.length === 1) {
+        this.logger.log(`Uploading single file: ${allFiles[0].originalname}`);
+        return await this.uploadService.uploadSingleImage(
+          allFiles[0],
+          uploadFolder,
+        );
+      }
+
+      // Multiple files with various fieldnames
+      this.logger.log(
+        `Uploading ${allFiles.length} files: ${allFiles
+          .map((f) => f.originalname)
+          .join(', ')}`,
+      );
+
+      return await this.uploadService.uploadMultipleImages(
+        allFiles,
+        uploadFolder,
+      );
+    } catch (error) {
+      // Check if it's a network connectivity issue
+      if (
+        error.message?.includes('getaddrinfo') ||
+        error.message?.includes('ENOTFOUND') ||
+        error.message?.includes('EAI_AGAIN')
+      ) {
+        this.logger.error(
+          'Network connectivity issue with Cloudinary API:',
+          error,
+        );
+        throw new InternalServerErrorException(
+          'Unable to connect to image storage service. Please check your network connection and try again.',
+        );
+      }
+
+      // Check if it's a Cloudinary API issue
+      if (error.message?.includes('api.cloudinary.com')) {
+        this.logger.error('Cloudinary API error:', error);
+        throw new InternalServerErrorException(
+          'Image storage service is temporarily unavailable. Please try again later.',
+        );
+      }
+
+      // Re-throw validation errors as bad requests
+      if (
+        error.message?.includes('Invalid file') ||
+        error.message?.includes('File too large') ||
+        error.message?.includes('not allowed')
+      ) {
+        throw new BadRequestException(error.message);
+      }
+
+      // Log and re-throw unexpected errors
+      this.logger.error('Unexpected upload error:', error);
+      throw new InternalServerErrorException(
+        'An unexpected error occurred during upload. Please try again.',
+      );
+    }
   }
 }

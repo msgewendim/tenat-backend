@@ -104,6 +104,16 @@ export class CreateProductDto {
   @IsOptional()
   image: string;
 
+  @ApiProperty({
+    example: ['product1.jpg', 'product2.jpg'],
+    required: false,
+    description: 'Array of image URLs for the product',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  images: string[];
+
   @ApiProperty({ type: [CategoryDto] })
   @IsArray()
   @ValidateNested({ each: true })
