@@ -306,3 +306,34 @@ export class Order extends Document {
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);
+
+@Schema()
+export class MinimalCartItem extends Document {
+  @Prop({ required: true })
+  @ApiProperty({
+    description: 'ID of the item',
+    example: '507f1f77bcf86cd799439011',
+  })
+  itemId: string;
+
+  @Prop({ required: true })
+  @ApiProperty({
+    description: 'Quantity of the item',
+    example: 2,
+  })
+  quantity: number;
+
+  @Prop({ required: true })
+  @ApiProperty({
+    description: 'Size of the item',
+    example: '500g',
+  })
+  size: string;
+
+  @Prop({ required: true })
+  @ApiProperty({
+    description: 'Price of the item',
+    example: 29.99,
+  })
+  price: number;
+}

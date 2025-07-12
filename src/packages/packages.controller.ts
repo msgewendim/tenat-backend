@@ -22,7 +22,7 @@ export class PackagesController {
   constructor(private readonly packagesService: PackagesService) {}
 
   @Post()
-  @UsePipes(new ValidationPipe())
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
   @ApiResponse({
     status: 201,
     description: 'The package has been successfully created.',

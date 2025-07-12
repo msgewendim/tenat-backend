@@ -118,10 +118,10 @@ export class UploadController {
   }
 
   @Post('images')
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Throttle({ default: { limit: 20, ttl: 60000 } }) // 20 uploads per minute for authenticated users
-  @Permissions('upload:images')
+  // @ApiBearerAuth()
+  // @UseGuards(JwtAuthGuard, PermissionsGuard)
+  // @Throttle({ default: { limit: 20, ttl: 60000 } }) // 20 uploads per minute for authenticated users
+  // @Permissions('upload:images')
   @ApiOperation({
     summary: 'Upload images (Authenticated)',
     description:
